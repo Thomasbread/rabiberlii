@@ -1,0 +1,380 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row =>
+                    row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+                );
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nachrichte vo Biberlii und Rabino</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #555;
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .chat-container {
+            max-width: 600px;
+            width: 100%;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        .message.biberlii {
+            align-items: flex-end;
+            transform: translateX(100px);
+        }
+        .message.rabinoo {
+            align-items: flex-start;
+            transform: translateX(-100px);
+        }
+        .message.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .message-header {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .message-date {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .message-bubble {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .message.biberlii .message-bubble {
+            background: #ffcccb;
+            color: #333;
+            border-bottom-right-radius: 5px;
+        }
+        .message.rabinoo .message-bubble {
+            background: #add8e6;
+            color: #333;
+            border-bottom-left-radius: 5px;
+        }
+        .message.biberlii .message-bubble::after {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: 10px;
+            border: 10px solid transparent;
+            border-left: 10px solid #ffcccb;
+        }
+        .message.rabinoo .message-bubble::after {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 10px;
+            border: 10px solid transparent;
+            border-right: 10px solid #add8e6;
+        }
+        .message:hover .message-bubble {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .heart {
+            color: #ff4d4d;
+            font-size: 1.2em;
+            animation: pulse 1s infinite;
+        }
+        .emoji {
+            font-size: 1.2em;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .final-message {
+            text-align: center;
+            font-size: 1.2em;
+            color: #333;
+            margin-top: 20px;
+            padding: 10px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        .final-message.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .welcome-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: fadeIn 0.5s ease-out;
+        }
+        .popup-content {
+            position: relative;
+            background: linear-gradient(135deg, #ffcccb 0%, #ffb6c1 100%);
+            margin: 15% auto;
+            padding: 30px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            font-size: 1.2em;
+            line-height: 1.6;
+            color: #333;
+            animation: slideIn 0.5s ease-out;
+        }
+        .close-popup {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        .close-popup:hover {
+            color: #333;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="welcomePopup" class="welcome-popup">
+        <div class="popup-content">
+            <span class="close-popup">&times;</span>
+            <p>Hallo du härzigs biberliii ganz fest gärn haa <3</p>
+        </div>
+    </div>
+    <script>
+        window.onload = function() {
+            document.getElementById('welcomePopup').style.display = 'block';
+        }
+        document.querySelector('.close-popup').onclick = function() {
+            document.getElementById('welcomePopup').style.display = 'none';
+        }
+    </script>
+    <h1>Nachrichte vo Biberlii und Rabino</h1>
+    <h2>Sache wo Rabino härzig, wichtig oder lustig het gfunde ❤</h2>
+    <div class="chat-container">
+        <div class="message biberlii">
+            <div class="message-header">(Wo du mir z Testat gä hesch)</div>
+            <div class="message-date">Unbekanntes Datum</div>
+            <div class="message-bubble">Heyy, sry i be huerä gstresst gsi wägä vori auso weli zreg i ongerecht han müessä, aber i fänds mega toll we mer öbis chöntä zämä machä weli di eig mega symphatisch fengä, aber das muesch wörk du sägä</div>
+        </div>
+        <div class="message rabinoo">
+            <div class="message-header">(Wo mir üses zwöite Träffe plant hei)</div>
+            <div class="message-date">11.9.2024</div>
+            <div class="message-bubble">Heyy i ha dänkt mir chönnte entweder am fritig abe use ga, so chli wie letzts mal und när no z.B. is mokka ga oder öppis ga ässe, z ding isch eifach z mokka duet halt gloub ersch so 20.30 uf. Oder mir chöi am samstig irgendwo ga zmittag ässe und so chli ar aare na laufe oder soo. Thierry het no gmeint mir sölle doch ga billard spile, cha me da unne bim casino, chöi mir oh guet mache oder vilich irgendwo ga klavier spile wos eis het</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Üses zwöite Träffe z Heimbärg)</div>
+            <div class="message-date">14.9.2024</div>
+            <div class="message-bubble">Heyy, i hoffä dini planig esch no perfekt ufgangä, ufjedäfau hani der no weiä sägä das igs imfau wörk nschön gfondä med der, eifach das mer teuwis kes thema hei, das chont doch scho forr, be äbä eher schüch u probierä wörk chli us mer usä z cho, aber es esch haut glich ned so mega liecht, u i gloub a üsserä verabschedig chöi mer o no arbeitä, esch glich emer no chli chlii komisch, aber ja ufjedäfau hani der das no weuä sägä, u merci för dä nami :)</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Johnny Englisch luege z Heimbärg, üses dritte Träffe)</div>
+            <div class="message-date">4.10.2024</div>
+            <div class="message-bubble">Eyy, ausooo verabschediii nömmm sooo schlemm gsiii, emer no chli komischh u verbesserigs materiall...aber es esch ä afangggg, u das chont de nacherä zittt...</div>
+        </div>
+        <div class="message rabinoo">
+            <div class="message-header">(Johnny Englisch luege z Heimbärg, üses dritte Träffe)</div>
+            <div class="message-date">4.10.2024</div>
+            <div class="message-bubble">Heyy i ha dir eifach no wölle säge das i sehr gärn sache mit dir mache oh wenn üsi kommunikation nonid so professionell isch hahaa. I find di würklech sehr symphatisch und oh hübsch, füehle mi wohl bi dir, I ha mängisch eifach so lüüt wo i halt ziit bruch mi so richtig z "öffne" but das chunt de noo. Merci für dä nami</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Johnny Englisch luege z Heimbärg, üses dritte Träffe)</div>
+            <div class="message-date">4.10.2024</div>
+            <div class="message-bubble">Awww, neii, i cha grad nömm, i cha nor sägä, mer geits genau glichh, klarr üsi kommunikation esch ned di bestiii, but mer machä emer glich z bestä us der situation wemer ke ahnig hei öber what redäää, u jaaa i fengä o das di zit wo mer beshär hei chönä zämä verbrengä mega schönn, es hed zwar teilwis emer so chlini momentä ka womer beidi chli sehr planlos si gsii, but das ghört gloubi so zemlech o chli derzuä. I be ganz erlech wo eg der denn gschrebä ha i hät di ganz angers igschezt, but iz woni so chli weiss wid beschhh, besch soo angersch auso i erwartet ha i fengä du besch ä mega härzigigi person, besch mega nätt u no feu mehh, u höbsch beschh natürlech definitiv , ke zwifuu, but i fa di wörk langsam afa gärn ha u i füelä mi o wohl bi der u schaffes emer me chli us mer usäzcho u chli me eg zii, vorrauem we mer mau es gsprächs thema hei, u o bi mer esch das soo, i bruchä oft mau zit om mi z öffnä u wörk mi so getrouä z si wini be u jaa das brucht zit but ergend einisch werd das o bi üs choo. Ouu chli längss sorryyyy 😅<br>But mercii der för dä namii u o di zit beshär med der :)</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Härzigs Kommentar zu Rabinos lustiger Frisurrr hahaa)</div>
+            <div class="message-date">15.10.2024</div>
+            <div class="message-bubble">Eii u wägä dim coiffeur Terminn, i fend auso es gseht ämu vou guett uss, öberhoupt ned schlemmm!</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Härzigi Nachricht vo Biberlii nach de Liechterspil)</div>
+            <div class="message-date">21.10.2024</div>
+            <div class="message-bubble">heyy i ha der no weuä sägä so i fengä du hesch dä äbä definitiv schöner gmacht, es esch mau chli angers gsii.. but es esch o aues extrem neu gsii, du besch der ersti giu (oder so ...,) wo mi vater hed lernä kennä.. u mer hed vlt gmerkt das eg be nervös gsii.. but es esch aues, feng ig eig ersunlech guet abglöfä, u i möcht haut glich no öbis loswärdä, i meinä i ha di scho medlerwilä wörk o gärn u soo.. u i fengäs mega schön ir nächi fo der z si.. o wemer so nüd häräbrengä.. i säge iz eifach so chli what eg dänkä, du muesch gar ned druf i ga... but ufjedäfau bedütisch du mer scho chli öbis u i fenges eifach mega schön öbis z machä met der oder o nomä z schribä u o wes nor chorz esch.. ja genau.. das hani no weuä sägä... mercii feu mau</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Antwort ufe Breif vo Rabino)</div>
+            <div class="message-date">1.11.2024</div>
+            <div class="message-bubble">Auso erstmau muesi klar stellä, der inhalt get vou senn u der breif esch wörklech mega schön u guet gschrebä u er hed mi wörklech positiv öberrascht, i hät niä dänkt das du grad so diräkt wersch si u so iz detail werdsch ga, u es esch öberhoupt nüd z komisch cho, i has mega schön gfongä das du sooo ehrlech besch u i be o mega froh dröber. Auso i be ehrlech, i ha zemlech respäkt u o chli angst derfo ka what i däm brief steit, but woninä gläsä haa beni wörklech positiv öberrascht gsi, wöu är esch soooo mega schönnn gschrebä wörklechh u es bedütet mer soo vill das du der diä müeh gmacht hesch u o das du di getrout hesch ehrlech z siii u so feu z sägä.. i gloub i häds mi ned getrout, but we du demet agfangä hesch, chani u sötti ja öbä bau witer fahräää. Ja auso de woni di zum erstä träffä gfragt ha.. das hed extrem öberwendig kostet, wöu i ha beshär einisch mau öber gfragt u da eschd situation o no chlii angersch gsiii..... i has emer mega schön gfonda med der z schribä u när o de z träffäää, u jaa i ha di o sehrr gärnnn, wöu i füehlä mi wörk wohl bi der u dä brief hed mer nomal me zeigt dasi der cha vetrouä... i be sehr vorstichtig what ds thema vetrouä a geit, but bi der weisi mettlerwilä i cha der vertrouä... i ha der meist nach dä träffä gschrebä u wo du mer de mau gschrebä hesch, hanis wörk soo mega schön gfondä o das wo du gschrebä hesch , hed mer denn so vil bedütet u mi mega happy gmachttt. U i be so frohh das du mini familiä unterhaltsam fendisch... i gloub da hani beshär am meistä angst ka, wöu beshär nor kolleginä wörk mini elterä kennäglernt heii... u i ne gwösst ha wis med ämä giel werd siiii.. but i be mega froh gsi dases när so guet esch glofä... nächst thema vom brief... ja auso i fenges mega schön dasds niemertem verzellt hesch, bi mer heds di ganz klass vo afang ah gwösst, i weiss o ned werom u si hei haut när o di ganzz zitt updates weläää, u es esch jedes mau so müesam gsii, but i ha enä o niä alles gseit, o emma ned, wöl bi emma esch mer z risiko z gross dases när ben weiss, so wi me emma u i di angerä emer weder fragä ob mer iz mau zämä sigä... what eg ächt krass fendä, wöu si extrem stressä... auso i ha vermuetlich i däm ganzä thema scho meh erfahrigä aus du ...but di erfahrigä woni ha si ned ombedengt nor gued u i fenges ned guet das eg das gmacht ha... du weisch ja dasi mi letzt frönd damals afangs fms gha han u das nor wöli ned ha chönä nei sägä... u das beröi u das esch ned z erstä mal.. dahär säg eg lieber dasi no niä ä rechtigi beziig gha ha, wöl i beröiä fasch alles what i gmacht ha... auso eig alles ossert öbis...what äbäfaus es jahr här esch...nach däm züg ha eg ke beziig me welä i ga, wäg der schuel, wöli angst ha dasi mi uf öbis i la woni ned wod, i wod mi ned uf öbis la i la, wölli mer ned secher be u dahär hani för me entschedä i wott ke beziig ha... u a däm hani welä festhaltä u ha mi ou probiert, nöm wörk för gielä z interessieräää u dahär be eg vorsichtig wordä, wägä mer, ig ha angst das eg ä fähler machä, das eg öber verletzä, u dasi öbis verlierä oder öber woni ned wod verlierä u dahär beni sooo frohhh gsi wo du gschrebä hesch dasd sachä sehr lansgam a geisch... mer esch mega wechtig das mer sech i allem what mer macht secher eschh, auso weisch ned das mer öbis macht womer beröit... mer söt sech wörk wohl füelä binänand u wemer öbsi macht mer söt sech secher si u ned us mettleid handlä, i fendä mer söt egau wimer zunänads steit, efiach das machä what mer o wörk möchti u womer sech secher esch... u jaaa auso du besch so es houpt thema gsi bi mer ir fröndesgroppä, auso vorrauem bi anna u anahi u mer hei sehr fell öber de gredet, but im senn fo, what füehl eg för deee, wöll eg möcht mer wörk mal birerä person secher siii, i wott mal einisch z rechtigä machää, u i ha angst das egal what zwöschä üs esch u werd das eg ä fähler machä.. u öber das ha eg mega fil med anahi gredet, wöli eifach angst ha de z verlürä, i meinä du machsch mi mega glöcklech u i ha iz scho vo paarnä ghört das si fendä i wörkä setärä zit fell glöckecher u dä grond esch nahelegend... wöll emer we du mer schribsch fröimi u du weisch ned wiiiäää nervös eg be gsii wäg däm brief u wi egs nöm ha chönä abwartäää, wöl i di wörk mega gärn ha u wi du velech us derä sach chasch usäläsä, i weiss iz ned wimer so züg formuliert, but ja i be o i de verliebt, i be mer vonerä zit no chliii onsecher gsii, wöll eg angst ha das eg verletzt werdä, wöl du mer wörklech öbis bedütisch, but abä o angst das eg de verletzä...but di textä womer nis gschrebä hei u soo hei när di sorgä la verschwendä, wöli ha afa merkä dasi gfüel för de ha.. i ha di mega gärnnn, i mues di ganz zit a de dänkä u dä ponkt wo mer am secherstä gmacht hed, esch das eg mer bi der mettlerwilä secher beee u i säg derrr i ha soo feu anahi gschrebä genauuu wägä dämmmm, u o we du mer mau gschrebä hesch, mini kolleginä hei emer gwösst dases du besch u sogar anna fended di guet im senn fo guet för me, what es no niä gä hed u das alles macht me secher bi derrr... wo du so sachä gschrebä hesch, wi du chasch der so öbis irerä art vo beziig vorstellä med mer, hani das halt schomal chum chönnä gloubä, wölis ned ha chönä gloubä... wölis eifach ned verstandä haa u soo ned erwartet ha... i has wörk ned chönä gloubä das DAS i däm brief steit u ha wörk es zitli bruch ums z realisierä.. i stemmä der bi au denä sachä woni cha zuestemmä völlig zuä u be dirä meinig i däm sen fo wi dus formuliert hesch fröndschaft u när emmer mehhh... es zeigt mer ou eifach what för ä tolä mönsch du beschh u das eg di ned möcht verlierä, wöl i ha z gfüeu, öber wo esch wi duuu fendet mer ned so liechtt, okay du besh eh einzigartig but glichhh sooo i beröies nedd, allessss, wöu du machsch mi wörk glöcklechhh, ja i gloub meh derzuä sägä muesi o ned i gloub das beschribt alles gneugg, i chönt no sooo feuu schribä, but i gloubdas länggt för ä momänt u i hoffä es get senn u es esch okay wis fschrebä eschh... u fell spass bim merh lesen dröckäää ;)</div>
+        </div>
+        <div class="message rabinoo">
+            <div class="message-header">(Antwort ufe Breif vo Rabino)</div>
+            <div class="message-date">1.11.2024</div>
+            <div class="message-bubble">sooo ausoo<br>du chasch dir grad nid vorstelle wie krass ufgregt ig für dä text bi gsii 😭<br>i ha zersch so eigentlech eifach e "normale" brief wölle schriibe, but irgendwie wo ig der erst so agfange ha am erste abe het sich das irgendwie so zu "normal" agfüehlt und irgendwie ha ig dänkt so e brief isch oh mal e gueti möglechkeit oppis loszwärde. i ha de auso lansam so chli agfange und de plötzlech ha ig eifach automatisch all das häregschribe und ersch när bim nomal düreläse richtig realisiert what ig eigentlech gschribe ha. I ha när wo ig de am morge nomal düregläse ha huere angst gha dä abzschicke oder irgend so öppis, i ha irgendwie angst gha das är zu direkt isch oder das du halt das alles nid empfindsch und es de alles so fasch chli "zerstört". Darum ha ig ne de ersch am donstig abgsändet, ha när am mittwoch no lang drüber nache dänkt und bi wider hin und här mit entscheide sii. Wo ig dir but när gschribe ha, das ig ne am donstig absände ha ig dänkt ja ize mues ig eifach, wenn igs scho gseit ha und woahhh du chasch dir nid vorstelle wie ufgregt ig bi gsii. Am donstig nach der schuel ha ig ne nomal düregläse und ha würklech angst gha. Jaa es tönt ize mega dumm haha but ig ha när um mi so chli z beruhige das origami vögeli gfaltet, obwohl ig origami bis ize i mim läbe nie ha gärn gha hahaa, ke ahnig vo wo das plötzlech cho isch. jaa denn ha igs edgar gnennt und edgar het mir de muet gä der brief abzsende hahaa, tönt wie wenn ig so es chlins chind wär, but ja das bi ig halt mängisch no :) jaa und irgendwie bi ig de oh nüm so ufgregt gsii. i ha irgendwie vertraue gha das das eifach guet chunt. jaaa soviel zu dämm, ize no zu dim text. I ha zwar äbe eigentlech es würklech guets gfüehl gha, but vorhär wo ig so gseh ha das du d antwort gschickt hesch ha ig irgendwie nomal chli angst gha. but irgendwie wo ig de scho die erste zile ha afa läse, isch das schowider wäggange. Ey di text isch würklech mega schön gschribe, du chasch mega guet so texte schriibe. i finds mega schön, das du mir so fest vertrausch und i mues säge das cha ig dir nur zrüggä. i finds mega härzig das es di so glücklech macht wenn ig schriib, und i cha dir säge es geit mir genau so. i wett zwar nid säge das es mir dervor nid guet gange isch oder so but i mues würklech säge du bisch scho so e mönsch wo z läbe eifach nomal doppelt so schön macht. du hesch gseit das du mega froh bisch, das ig gschribe ha, das ig sache eher langsam agaa und da bi ig mega froh das du das guet findsch. I finde e Beziehig isch würklech öppis wo me nid schnäll mues ha oder nur ha, das me e beziehig het. I finde e Beziehig het me wil es e wichtige teil vom läbe isch und öppis sehr schöns isch. Wenn öppis sehr schön isch de het me sorg derzue und luegt, das es nid kaputt geid. und genau darum isches oh immer guet wenn me sache langsam ageit, sache only macht wenn sich beidi sicher sii. Wo du drum denn mal oh gseit hesch, das du so schlächt chasch nei säge, ha ig oh chli angst gha dä brief z schriibe. I ha dä brief unbedingt so wölle schriibe das du wie oh nid chasch mit eme ja oder nei antworte, wil ig will nid das du öppis machsch, wo du när bereusch. Darum ha ig ihn so gschribe, das du wie oh mit dire perspektive chasch antworte, so dini sicht erkläre. Du hesch oh gseit, das du angst hesch e fähler z mache. und i säge dir das ha ig doch oh. und i gloub das hätt jede mönsch i dere situation. But only mal isch gloub vo mir us gseh genau das wichtig i ere beziig. das me fähler macht. Wenn e beziig immer perfekt isch, de isch si zwar vilich perfekt but nid schön. und für mi mues e beziig schön sii und nid perfekt. I gloub z wichtigste i ere beziig isch, das me anenand die fähler när oh cha verzeihe, das me am andere nid bös isch, wenn är mal e fähler macht. und wenn me söttigs verhältnis zuenand het, de wärde oh keni grosse fähler entstah, da me sich guet versteit und ehrlech zuenand isch. jaa auso i bi de alles andere aus irgend e beziehigs profi oh wenn ig mi grad so astelle hahaa, i cha eigentlech eifach säge what ig mir unter ere beziig vorstelle und what ig afe beobachtet ha. jaa soviel zu däm. jaa i cha mir guet vorstelle das du das ganze ize nid grad so imene random brief erwartet hättsch hahaa but irgendwie bi ig mir eifach jede tag sicherer worde, das ig das so wett. und jaa Thierry, yul und Nicolas finde di auso oh voll guet für mi und mis mueti und mini schwöster chöi auso oh nümme warte di ändlech kenne z lerne 😂<br>mini schwöster fragt immer so wenn si di de ändlech mal gseht und sooo. jaa mim mueti ha igs vo afang a verzellt, scho wo mir afa schriibe hei, wo ig mir eig no gar nid sicher gsii bi. jaa si isch halt e profi i sache ratschläg gä und darum bi ig sehr froh das ig sii ha. jaa i würd säge du bisch uf jede fall oh i üsere familie würklech willkomme, genau so wie oh bi mine fründe und eifach überall i mim läbe. i finde oh das me öpper wie di only sehr sälte findet, e chance vo 1 zu 9 000 000 000 auso find ig bi ig scho zimmlech glücklech das ig di gfunde ha. i mein scho only d chance das mir im gliiche land läbe isch 1 zu 194 und de no das mir ir gliiche schuel sii ischs only no 1 zu c.a 6 000 000. ja so egal fertig math. i mues würklech säge i bereue nüüt what mir bis ize gmacht hei und i ha di würklech mega gärn ❤ ( ja i ha mi ize eifach mal derfür gha z rote härz z schriibe, hoffe das isch guet soooooo) soo guet uf jede fall hoff ig das das nid zu viel "mehr lesen" git but jaa mir wärdes gsehhhhhh</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Antwort ufe Breif vo Rabino)</div>
+            <div class="message-date">1.11.2024</div>
+            <div class="message-bubble">Ohaaa ausooo i weis ned what du fendsch das eg cha gueti textä schribä, wöuu du topschh mini ehhh di ganz zittttttttttt... Auso nehmä weder stellig zu dim text, u probieres mau no chorz z haltä schosch chont das ned guett 😭, us erst mauuu, o neii du hättisch der ned soo fell stress müessä machä wägä däm brief, i be öber i nehmä ehh alles megaa chillig, auso bi so öbisem muesch du so gar ke angst haa u es wär o nüd zerstört gsii, but i verstas schoo... Hätti au ghaaa... But edgarr esch megaaa härziggg, auso är gseht haut scho soo us winer motivation wörd verbreitäääää, u es esch wörk härzig u chli chend esch jeder emer chlii, beni au sehr ofttttt...u neii i ha ou niä gseit dases mer vorhär ned guet esch gangä, i be im allgemeinä ä sehr happy mönsch, anna so zu mer mau so entweder beni wörk stell u zrog halten oder i be happy u de o uvtreit, problem i be di ganz zit gfüelt happy u so o ufträitt.. naja cha positiv oder negativ siii, but neii es esch soo härzig vo der wi du das aues formulierschhh u es fröit mi mega dasi z läbä schön machääää 🤭 ...but nei du tönsch so rechtigg nach somenä beziigs expert u när chont sooo fo beobachtigäää, auso tönt sehr professionell muesi scho sägäää 😂, but dini secht fo beziig fendi mega schön u es esch o soo, i fengä so wi dus beschribsch esch das what ä beziig usmacht, haut di schönä momäntä medänand u au dasss.. u jaa jedä macht fähler, but mer hed haut glich angst das mer fähler machtt u es chont o druf ah wasss för fählerrr... U jaaa i be o gspannt dini familiä kennäzlernä..., but i stellä mer si iz weni so gseh wi du si beschribsch u so das si mega härzlechi mösnchä siiii. I ha zwar o angst dasi extrem schüchh werdä..but probierä mis bestä z gääää... Es esch but mega schön dasd so ä geuti beziig zu dirä muetter hesch, i fengä das esch eh ä mega wechtigi beziig im läbää.... auso mini muetter weiss eh so guet wi alles öber me... Auso i verzellä erä eh alles so weiss si fo der o scho fo afang ahh bscheidd... But es fröit mi o mega dasi öberall bi der willkomä be, das schetzeni mega, du besch natürlech bi mer o emer willkomä, egal bi wämm oder wooo. O neeii ned mathhhhh, höt gneug mathh kaaa... So math esch jedoch no voll akzeptabel muesii also sägää... U das rotä härz esch guet soo, alles guetttttt... U jaaaa i ha iz probiert der text chorz z haltä wöu we das di ganz zit so witer geit, auso i weiss ja ou neddd..., but i gloub das wörd schosch no lang so witer gaa... but i schetzä di nachrechtä megaa, vorrauem wöu du si sehr schön schribsch u i si o sehrr gärn lessäää, u de merci fel mal för di textä u ha di o ganz fest gärnnn ❤</div>
+        </div>
+        <div class="message rabinoo">
+            <div class="message-header">(Nach der Schuel no ga Schutte und es Bubble Tea im Manor ga trinke)</div>
+            <div class="message-date">7.11.2024</div>
+            <div class="message-bubble">Heyy<br>Isch sehr schön gsii mit dir hüüt und i gloub so kommumikations mässig hei mirs ize würklech im grifff :)<br>Es isch würklech nie langwilig mit dir und du gisch mir würklech vil energie und machsch mii glücklech.<br>Jaaa soviel zu däm und de no vil spass bim bio lerneeee 😘 hahaaaa</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Nach der Schuel no ga Schutte und es Bubble Tea im Manor ga trinke)</div>
+            <div class="message-date">7.11.2024</div>
+            <div class="message-bubble">Auso kommunikations mässig beni sehr stolz uf üs, das esch iz wörklech mega guet gangää, u jaaa es esch sehrr schön gsiii.<br>Nawww, das fröit mi mega das eg de glöcklech machä u der energie gebäää 🤭:)<br>Das be eg haut, be zwar ned so hyper bi derrr, but das esch guet, i gloub de simer so chli ufem glichä enegri niveauuu...<br>But ja merciii.. auso beni ehrlech, i wörd iz lieber iz bett ga legä u netflix luegä u der so ud wermii, wöu mettlerwilä hani ou chaudddd 😭🥰</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Zirkus Knie)</div>
+            <div class="message-date">8.11.2024</div>
+            <div class="message-bubble">But i has mega schön gfondää, be vori chli onschlössig gsi wöu réne ( ke ahnig wimers schribt) u sinä chend o ergendwiä tschüs sägä, ha mi but chli fo däm busli la stressä, wöu diä si sehrrr onberächäbarrriii dengerrr, but es esch wörk mega schön gsii, u dini familiä esch wörklech mega nätt u sehr symphatischh, u ja es hed mi mega gfröit dasi ha chönä medchoo, u am schloss hanis doch no häräbracht mi chlii meh z öffnää, but esch sehr schön gsii, merci fill mall 😘</div>
+        </div>
+        <div class="message rabinoo">
+            <div class="message-header">(Zirkus Knie)</div>
+            <div class="message-date">8.11.2024</div>
+            <div class="message-bubble">Aahhh jaaa kes dingg jaa auso ihn schriibt me goub rené soo but chasch oh eif ohni französische gugus schriibe i weis ja wärd meinsch hahaaaa<br>Und jaa isch würklech sehr schön gsii, du hesch das mega guet gmacht, und definitiv der tag besser gmachtt und jaa mini familie het di ize würklech scho sehr gärn auso ghörsch eigentlech scho gfüehlt zur familie :)<br>Merci diir dasd mittchoo bischhh 😘</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Zirkus Knie)</div>
+            <div class="message-date">8.11.2024</div>
+            <div class="message-bubble">Naww das fröit mi mega, ja i ha si iz o scho sehr gärn, but si si wörk o mega härzigi mönschä u so eri art esch scho sehr toll u so ufstellen. U i muess sägä so der abä z verbrengä iz med dir (u natürlech dirä familiä) esch definitiv schöner gsi als eifach netflix luegä u chilläää oder iz aargau fahrä u nüd machä :)<br>u neii i gloub i be vorhär nor sehr sältä so nervös gsiii, but es esh wörk när gangä u zwar wörk erstunlech guet u de beni froh dasis guet gmacht haa... Da hani erenut angst ka dasi öbis falsch machää, wöl wi gloub im soz oder päd glernttt, erst idrock esch dr wechtigsttttt<br>But klarr i be mega gärn mittchooo 🫶🏼</div>
+        </div>
+        <div class="message rabinoo">
+            <div class="message-header">(Übernachte und Death-Note luege)</div>
+            <div class="message-date">11./12.11.2024</div>
+            <div class="message-bubble">Heyy<br>Sooo bi ize mal oh derzue cho dir no z schriibee<br>Auso afe mal ha ig wölle säge das igs würklech schön ha gfunde mit dir gester und die ganzi nacht.<br>Oh wenn du so hesch gseit so chli äbe wäge das es unordendlich isch und so, find ig ha ig mi trotzdem eig sehr wohl gfüehlt und vor allem grad so diis zimmer find ig sogar sehr schön igrichtet:)<br>A sache putze und soo sött di vater/brüetsch vilich no chli arbeite, but i gseh halt oh das das sehr schwirig isch so sii "derzue z bringe". But trotz all dem ischs sehr schön gsii und oh so das du dir die müeh mit ufrume gmacht hesch ha ig oh mega schön gfunde.<br>D nähi zu dir het sich oh sehr guet agfüehlt und oh wenn mini motivation am morge nid so da isch gsii ha igs soo schön gfunde so näbe dir ufzwache und oh när zäme id schuel z gaa. Jaaa gloub wenn mir no chli meh schlaf hätte gha wär mini motivation am morge oh no chli meh da gsii but jaa da chöi mir ja no dran arbeite:)<br>Du chasch sehr gärn mal uf meiringe choo, ha oh so es mega grosses bett und sehr vil stofftier 😂 auso würd oh sehr chillig wärdee.<br>Jaa uf jede fall merci vil mal für dä schön abe / nacht, ha di würklech sehr gärn bechoo <3</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Z erste mal bi Rabino übernachte)</div>
+            <div class="message-date">15./16.11.2024</div>
+            <div class="message-bubble">Heyyy, i mues sägä med dim vater esches ausö wörk ned so schlemm gsii, has knapp öberläbttt 😂, but es esch mega schön gsi, u i muess sägä bi der chamer sech wörklech wohl füehlä u dini familä chamer wörk gärn ha, u es hed mi mega gfröit di vater o no chönä kennä z lernä. Ufjedäfau hanis mega schön gfondä med der, vorrauem gester abä u höt am morgä ned müessä ufstah esch scho sehr schön gsi, vorrauem med der. Auso fazit, i has wörk mega schön gfondä med der u bi der z siiii u mer machä auso wörklech fortschrettäää, u i füehlä mi bi der wörk mega wohl, ha di ganz fest gärn 😘<3</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Z erste mal bi Rabino übernachte)</div>
+            <div class="message-date">15./16.11.2024</div>
+            <div class="message-bubble">Ja i mues sägä di nächi zu der hani sehr gnossä u das chöi mer definitiv wederholä, i ha me o sehr secher bi der gfühlt u so ufzwachä esch sehr schön gsiiii, obwohl mer ned hei mögä ufstahhh, but merci der för alles u das med gester abä dued mer de wörk no leid, esch chli onpraktisch gsiiii, u merci dasd probiert hesch d Postfinance app achäzladä, but i gloub mis handy mag di app halt eifach ned haaaa. U bi dirä familiä füeli mi wörklech wohl, dasi das no gseit ha ❤</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Z erste mal bi Rabino übernachte)</div>
+            <div class="message-date">15./16.11.2024</div>
+            <div class="message-bubble">Auso widerholä werd secher kes problemmmm, irechtä chanis för de emmer :) Ja auso buchweh eifach chli närvedn platziert si, vorrauem wöui ke ahnig ha wisoooo...but ka i mues o sägä, för me esches öbä afa di schönsti nacht u vorrauem z schönstä ufstah gsi woni beshär erläbt haa ❤</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Z erste mal bi Rabino übernachte)</div>
+            <div class="message-date">15./16.11.2024</div>
+            <div class="message-bubble">U i be mega froh gsi, das di getrout hesch wiä witer z ga, wöu i säg der scho nor den am abä mi chopf of dini schulterä z legä hed me mega öberwendig kostet, dahär beni mega froh gsi das du de getrout hesch, u äbä druf i gani, but sälber öbis z stand brengä bechomeni ned häräää...but i gloub a z ufwachä med der chamer sech no fasch dra gwöhnääää :)</div>
+        </div>
+        <div class="message biberlii">
+            <div class="message-header">(Biberli wo nachem Pulli fragt)</div>
+            <div class="message-date">Unbekanntes Datum</div>
+            <div class="message-bubble">U no co ä chlini u extrem dommi fraggg, wördsch du mer "reintheoretisch", wenni de nachämä pulli wörd fragä, mer einä gää, wöu i ha di eig welä fragä, but i be mer ned secher obs okay esch, wöui o ned weis what üsä status esch u ab wos okay esch, ja chli dommi frag sorry, but nemmt mi glich wonder</div>
+        </div>
+        <div class="final-message">
+            Merci vil vil mal für alles, es isch e mega schöni Ziit mit dir gsii und das wirds oh wiiterhin sii. Ha di ganz ganz ganz fest gärnnn <3
+        </div>
+    </div>
+    <script>
+        // Intersection Observer for scroll animations
+        const messages = document.querySelectorAll('.message, .final-message');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        messages.forEach(message => observer.observe(message));
+    </script>
+</body>
+</html>
