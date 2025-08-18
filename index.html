@@ -232,13 +232,63 @@
     </style>
 </head>
 <body>
+        <!-- Brief Popup Trigger Button -->
+        <button id="openLetterBtn" class="letter-btn" style="position: fixed; bottom: 30px; right: 30px; z-index: 1100; background: #fff; border: none; border-radius: 50px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); padding: 16px 28px; font-size: 1.3em; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.2s;">
+            <span style="font-size: 1.6em;">✉️</span>
+            <span style="font-weight: 500; color: #d16ba5; letter-spacing: 1px;">Open me</span>
+        </button>
+
+        <!-- Brief Popup Modal -->
+        <div id="letterPopup" class="letter-popup" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.45); z-index: 1200; justify-content: center; align-items: center;">
+            <div class="letter-popup-content" style="background: linear-gradient(135deg, #f8ffae 0%, #43c6ac 100%); border-radius: 24px; box-shadow: 0 6px 32px rgba(0,0,0,0.18); padding: 40px 32px 32px 32px; max-width: 420px; width: 90%; text-align: center; position: relative; transform: scale(0.7) rotateX(60deg); opacity: 0; transition: none;">
+                <span id="closeLetterPopup" style="position: absolute; top: 18px; right: 22px; font-size: 2em; color: #888; cursor: pointer; font-weight: bold;">&times;</span>
+                <div style="font-size: 2.5em; margin-bottom: 12px;">✉️</div>
+                <h2 style="margin: 0 0 18px 0; color: #2d3a4a; font-size: 1.5em; letter-spacing: 1px;">Briefli für Biberlii</h2>
+                <div id="letterMessage" style="color: #333; font-size: 1.1em; line-height: 1.7; min-height: 80px; max-height: 340px; overflow-y: auto; text-align: left; margin: 0 auto 0 auto; padding-right: 8px;">
+                        <b>Heyy Biberlii</b><br>
+                        Bino het dänkt, dass bino biberlii mal nid eifach so e langwiligi WhatsApp nachricht schriibt, sondern es richtigs chliises digitals brieflii. Hoffe das duet biberlii fröiee und git biberliii chli meh z ächte briefli erläbnis, wenn mir üs hüüt halt grad nid so chöi gseeh. Also scho 9 Monat si mir ize zäme. Das isch lang für e Beziehig i üsem Alter. Und Bino mues also säge, i bi sehr stolz da druf. Es heis nid vil lüüt so schön wie mir, das mir so guet mitenand uschöme, so guet üsi Problem chöi löse, wie zwöi richtigi Profis. Bino duet biberlii ganz ganz fest liebe und isch mega dankbar für das wo mir hei. Bino dänkt jede tag a biberlii. A biberliis härzige lächle, a di schöne ziite wo mir zäme hei gha und no wärde ha, a üsi Dino familie, a all das schöne Züüg wo ig mit niemerem süsch chönnt ha. Bino stellt sich jede Abe vor, dass Biberlii näbe ihm würd lige und oh wenns mega heiss isch Biberlii akuschele und umarme. I finde nid nume die aktivi ziit wo mir zäme verbringe so schön, i findes oh mega schön eifach z wisse öpper so liebs und öpperem wo me würklech alles cha avertroue im läbe z ha. Biberlii treit sehr fest zu binos sälbstsicherheit bii und isch e megaa wichtige Teil vo binos läbe. Wo mir letzt Fritig zäme no sii ga jogge und när no ga bade, das isch so schön gsii, i söttige momänte cha bino wider mega vil Energie tanke und isch mega wichtigg. Oh das du am erste Schueltag bisch zu mir cho ässe si eifach alles so sache wo mega nid sälbstverständlech sii oder das du mir soo vil härzigi briefli machsch und so vil anderi härzigi idee. Bino isch sooo fest dankbar, das alles dörfe z ha und bino cha sich im momänt sehr guet vorstelle für e seehr langi ziit mit biberlii zäme z bliibe, eifach wül ig mi so wohl i dere Beziehig füehle. So dass Biberlii no mit 80 cha bino z chöpfli chräbele und das mir chöi zäme ga spaziere und zrügg ufz läbe luege und eifach säge, wow, mir hei so vil gschafft. Üs de denn vilich über di neui Jugend lustig mache, zäme ga Reise, zäme ga irgendwelchi Restaurants usprobiere und no wenn mir ganz alt sii zäme as Meer ga und der Abe am Strand verbringe, am Sunneuntergang zueluege und immer no z gliiche fürenand füehle. Das wär mega schön. Uf jede fall möcht sich bino nomal für alles bedanke, das biberlii für bino da isch, so lieb, hilfsbereit und härzig zu bino isch. Bino duet di gaaanz fest liebeee muähhhhhh<br>
+                        <i>Ganz fest liebe und es grüessli vo de Dinooss😘✨❤</i>
+                </div>
+            </div>
+        </div>
     <div id="welcomePopup" class="welcome-popup">
         <div class="popup-content">
             <span class="close-popup">&times;</span>
-            <p>ganz fest gärn haaaa <3</p>
+            <p>Uf "open me" drücke!</p>
         </div>
     </div>
     <script>
+            // Brief Popup Logic
+            document.addEventListener('DOMContentLoaded', function() {
+                var openBtn = document.getElementById('openLetterBtn');
+                var popup = document.getElementById('letterPopup');
+                var closeBtn = document.getElementById('closeLetterPopup');
+                var letterMsg = document.getElementById('letterMessage');
+                var popupContent = document.querySelector('.letter-popup-content');
+                openBtn.addEventListener('click', function() {
+                    popup.style.display = 'flex';
+                    // Animation zurücksetzen
+                    if (popupContent) {
+                        popupContent.style.transition = 'none';
+                        popupContent.style.transform = 'scale(0.7) rotateX(60deg)';
+                        popupContent.style.opacity = '0';
+                        setTimeout(function() {
+                            popupContent.style.transition = 'transform 0.6s cubic-bezier(0.23,1.02,0.32,1), opacity 0.5s';
+                            popupContent.style.transform = 'scale(1) rotateX(0deg)';
+                            popupContent.style.opacity = '1';
+                        }, 30);
+                    }
+                    // Nach oben scrollen, falls nötig
+                    if (letterMsg) letterMsg.scrollTop = 0;
+                });
+                closeBtn.addEventListener('click', function() {
+                    popup.style.display = 'none';
+                });
+                // Optional: Schließen beim Klick außerhalb des Popups
+                popup.addEventListener('click', function(e) {
+                    if (e.target === popup) popup.style.display = 'none';
+                });
+            });
         window.onload = function() {
             document.getElementById('welcomePopup').style.display = 'block';
         }
